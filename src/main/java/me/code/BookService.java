@@ -7,39 +7,52 @@ import java.util.Map;
 
 public class BookService {
 
-    private final Map<String, Book> books = new HashMap<>();
+    private final BookRepository repository;
+
+    public BookService(BookRepository repository) {
+        this.repository = repository;
+    }
 
     public void addBook(Book book) throws BookAlreadyExistsException {
-        if (books.containsKey(book.getName())) {
+        if (repository.getByName(book.getName()).isPresent()) {
             throw new BookAlreadyExistsException(BookAlreadyExistsException.Type.Name);
         } else if (getByISBN(book.getIsbn()) != null) {
             throw new BookAlreadyExistsException(BookAlreadyExistsException.Type.ISBN);
         }
 
-        books.put(book.getName(), book);
+        repository.save(book);
     }
 
     public Book getByISBN(String isbn) {
-        for (var entry : books.entrySet()) {
-            if (entry.getValue().getIsbn().equals(isbn)) {
-                return entry.getValue();
+        for (var book : repository.getAll()) {
+            if (book.getIsbn().equals(isbn)) {
+                return book;
             }
         }
 
         return null;
     }
 
-    public void removeBook(String isbn) {}
+    public void removeBook(String name) throws BookNotFoundException {
+        var existing = this.repository.getByName(name);
+        if (existing.isEmpty()) {
+            throw new BookNotFoundException();
+        }
 
-    public void removeBook(Book book) {}
+        this.removeBook(existing.get());
+    }
+
+    public void removeBook(Book book) {
+        this.repository.remove(book);
+    }
 
     public Collection<Book> search(String name) {
         var searched = new ArrayList<Book>();
 
-        for (var entry : books.entrySet()) {
-            var bookName = entry.getValue().getName();
+        for (var book : repository.getAll()) {
+            var bookName = book.getName();
             if (bookName.toLowerCase().contains(name.toLowerCase())) {
-                searched.add(entry.getValue());
+                searched.add(book);
             }
         }
 
@@ -47,6 +60,6 @@ public class BookService {
     }
 
     public Collection<Book> getAllBooks() {
-        return this.books.values();
+        return this.repository.getAll();
     }
 }
